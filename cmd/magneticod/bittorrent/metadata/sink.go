@@ -79,7 +79,7 @@ func NewSink(deadline time.Duration, maxNLeeches int) *Sink {
 	ms.PeerID = randomID()
 	ms.deadline = deadline
 	ms.maxNLeeches = maxNLeeches
-	ms.drain = make(chan Metadata, 10)
+	ms.drain = make(chan Metadata, 100)
 	ms.incomingInfoHashes = make(map[[20]byte][]net.TCPAddr)
 	ms.termination = make(chan interface{})
 

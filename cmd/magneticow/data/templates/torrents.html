@@ -14,37 +14,159 @@
     <script src="/static/scripts/torrents.js"></script>
 
     <script id="item-template" type="text/x-handlebars-template">
-        <li>
-            <div>
+        <div class="torrent-card">
+            <div class="torrent-header">
                 <h3><a href="/torrents/{{infoHash}}">{{name}}</a></h3>
-                <a href="magnet:?xt=urn:btih:{{infoHash}}&dn={{name}}">
-                    <img src="static/assets/magnet.gif" alt="Magnet link"
-                         title="Download this torrent using magnet" /> <small>{{infoHash}}</small></a>
             </div>
-            {{size}}, {{discoveredOn}}
-        </li>
+            <div class="torrent-meta">
+                <span class="meta-item" title="Size">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    </svg>
+                    {{size}}
+                </span>
+                <span class="meta-item" title="Files">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="13 2 13 9 20 9"></polyline>
+                    </svg>
+                    {{nFiles}} {{nFilesText}}
+                </span>
+                <span class="meta-item" title="Discovered">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    {{discoveredOn}}
+                </span>
+                {{#relevance}}
+                <span class="meta-item relevance" title="Relevance Score">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    {{relevanceScore}}%
+                </span>
+                {{/relevance}}
+            </div>
+            <div class="torrent-actions">
+                <a href="magnet:?xt=urn:btih:{{infoHash}}&dn={{name}}" class="btn-magnet" title="Download with magnet link">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="8 17 12 21 16 17"></polyline>
+                        <line x1="12" y1="12" x2="12" y2="21"></line>
+                        <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
+                    </svg>
+                    Magnet
+                </a>
+                <a href="/torrents/{{infoHash}}" class="btn-details" title="View details">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    Details
+                </a>
+            </div>
+            <div class="torrent-hash">
+                <code>{{infoHash}}</code>
+            </div>
+        </div>
     </script>
 </head>
 <body>
-<header>
-    <div><a href="/"><b>magnetico<sup>w</sup></b></a>&#8203;<sub>(pre-alpha)</sub></div>
-    <!-- TODO: why make a GET request again? handle it client-side -->
-    <form action="/torrents" method="get" autocomplete="off" role="search">
-        <input type="search" name="query" placeholder="Search the BitTorrent DHT">
-    </form>
-    <div>
-        <a href="/feed" id="feed-anchor"><img src="static/assets/feed.png"
-                                               alt="feed icon" title="subscribe" /> subscribe</a>
+<div class="container">
+    <header>
+        <div class="header-brand">
+            <a href="/"><b>magnetico<sup>w</sup></b></a>
+        </div>
+        <form action="/torrents" method="get" autocomplete="off" role="search" class="search-form">
+            <div class="search-container">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="search" name="query" placeholder="Search torrents and files in the DHT..." class="search-input">
+            </div>
+        </form>
+        <div class="header-actions">
+            <a href="/feed" id="feed-anchor" class="btn-feed" title="Subscribe to RSS feed">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 11a9 9 0 0 1 9 9"></path>
+                    <path d="M4 4a16 16 0 0 1 16 16"></path>
+                    <circle cx="5" cy="19" r="1"></circle>
+                </svg>
+                <span>RSS</span>
+            </a>
+        </div>
+    </header>
+
+    <div class="controls-bar">
+        <div class="filter-section">
+            <label class="filter-label">Sort by:</label>
+            <div class="filter-buttons">
+                <button class="filter-btn" data-order="RELEVANCE" title="Sort by relevance">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Relevance
+                </button>
+                <button class="filter-btn" data-order="DISCOVERED_ON" title="Sort by date discovered">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Date
+                </button>
+                <button class="filter-btn" data-order="TOTAL_SIZE" title="Sort by size">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    </svg>
+                    Size
+                </button>
+                <button class="filter-btn" data-order="N_FILES" title="Sort by number of files">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="13 2 13 9 20 9"></polyline>
+                    </svg>
+                    Files
+                </button>
+            </div>
+        </div>
+        <div class="sort-direction">
+            <button class="sort-toggle" id="sort-toggle" title="Toggle sort direction">
+                <svg class="icon icon-asc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="19" x2="12" y2="5"></line>
+                    <polyline points="5 12 12 5 19 12"></polyline>
+                </svg>
+                <svg class="icon icon-desc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <polyline points="19 12 12 19 5 12"></polyline>
+                </svg>
+            </button>
+        </div>
     </div>
-</header>
-<main>
-    <ul>
-    </ul>
-</main>
-<footer>
-    <button onclick="load();">
-        Load More Results
-    </button>
-</footer>
+
+    <main>
+        <div class="results-info">
+            <span id="results-count">Loading...</span>
+        </div>
+        <div id="results-container">
+        </div>
+        <div class="load-more-container">
+            <button class="btn-load-more" id="load-more-btn">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+                <span>Load More Results</span>
+            </button>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>Magnetico - Autonomous BitTorrent DHT search engine</p>
+        </div>
+    </footer>
+</div>
 </body>
 </html>

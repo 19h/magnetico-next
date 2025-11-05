@@ -255,6 +255,7 @@ func (db *sqlite3Database) QueryTorrents(
 	firstPage := lastID == nil
 
 	// executeTemplate is used to prepare the SQL query, WITH PLACEHOLDERS FOR USER INPUT.
+	// Enhanced query to search both torrent names and file paths
 	sqlQuery := executeTemplate(`
 		SELECT id 
              , info_hash
@@ -270,10 +271,24 @@ func (db *sqlite3Database) QueryTorrents(
 		FROM torrents
 	{{ if .DoJoin }}
 		INNER JOIN (
-			SELECT rowid AS id
-				 , bm25(torrents_idx) AS rank
-			FROM torrents_idx
-			WHERE torrents_idx MATCH ?
+			-- Combine results from both torrents and files FTS indexes
+			SELECT id, MIN(rank) as rank FROM (
+				-- Search in torrent names
+				SELECT rowid AS id
+					 , bm25(torrents_idx) AS rank
+				FROM torrents_idx
+				WHERE torrents_idx MATCH ?
+				
+				UNION
+				
+				-- Search in file paths
+				SELECT f.torrent_id AS id
+					 , bm25(files_idx) AS rank
+				FROM files_idx
+				INNER JOIN files f ON files_idx.rowid = f.id
+				WHERE files_idx MATCH ?
+			)
+			GROUP BY id
 		) AS idx USING(id)
 	{{ end }}
 		WHERE     modified_on <= ?
@@ -312,6 +327,8 @@ func (db *sqlite3Database) QueryTorrents(
 	// Prepare query
 	queryArgs := make([]interface{}, 0)
 	if doJoin {
+		// Add query twice - once for torrent names, once for file paths
+		queryArgs = append(queryArgs, query)
 		queryArgs = append(queryArgs, query)
 	}
 	queryArgs = append(queryArgs, epoch)
@@ -671,6 +688,39 @@ func (db *sqlite3Database) setupDatabase() error {
 		`)
 		if err != nil {
 			return errors.Wrap(err, "sql.Tx.Exec (v2 -> v3)")
+		}
+		fallthrough
+
+	case 3:
+		// Upgrade from user_version 3 to 4
+		// Changes:
+		//   * Created `files_idx` FTS5 virtual table for file path searching
+		zap.L().Warn("Updating database schema from 3 to 4... (this might take a while)")
+		_, err = tx.Exec(`
+			CREATE VIRTUAL TABLE files_idx USING fts5(path, content='files', content_rowid='id', tokenize="porter unicode61 separators ' !""#$%&''()*+,-./:;<=>?@[\]^_` + "`" + `{|}~'");
+			
+			-- Populate the files index
+			INSERT INTO files_idx(rowid, path) SELECT id, path FROM files;
+
+			-- Triggers to keep the files FTS index up to date.
+			CREATE TRIGGER files_idx_ai_t AFTER INSERT ON files BEGIN
+			  INSERT INTO files_idx(rowid, path) VALUES (new.id, new.path);
+			END;
+			CREATE TRIGGER files_idx_ad_t AFTER DELETE ON files BEGIN
+			  INSERT INTO files_idx(files_idx, rowid, path) VALUES('delete', old.id, old.path);
+			END;
+			CREATE TRIGGER files_idx_au_t AFTER UPDATE ON files BEGIN
+			  INSERT INTO files_idx(files_idx, rowid, path) VALUES('delete', old.id, old.path);
+			  INSERT INTO files_idx(rowid, path) VALUES (new.id, new.path);
+			END;
+
+			-- Add index on torrent_id for faster file-based torrent lookups
+			CREATE INDEX IF NOT EXISTS files_torrent_id_index ON files (torrent_id);
+
+			PRAGMA user_version = 4;
+		`)
+		if err != nil {
+			return errors.Wrap(err, "sql.Tx.Exec (v3 -> v4)")
 		}
 	}
 

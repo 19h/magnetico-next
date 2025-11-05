@@ -107,6 +107,10 @@ func (is *IndexingService) bootstrap() {
 		"router.bittorrent.com:6881",
 		"dht.transmissionbt.com:6881",
 		"dht.libtorrent.org:25401",
+		"router.utorrent.com:6881",
+		"dht.aelitis.com:6881",
+		"router.bitcomet.com:6881",
+		"dht.anacrolix.link:42069",
 	}
 
 	zap.L().Info("Bootstrapping as routing table is empty...")
@@ -233,12 +237,16 @@ func (is *IndexingService) onSampleInfohashesResponse(msg *Message, addr *net.UD
 		is.counter++
 	}
 
-	// TODO: good idea, but also need to track how long they have been here
-	//if msg.R.Num > len(msg.R.Samples) / 20 &&  time.Duration(msg.R.Interval) <= is.interval {
-	//	if addr.Port != 0 {  // ignore nodes who "use" port 0...
-	//		is.routingTable[string(msg.R.ID)] = addr
-	//	}
-	//}
+	// If the node has more samples and responds quickly, add it to routing table
+	if msg.R.Num > len(msg.R.Samples)/20 && time.Duration(msg.R.Interval)*time.Second <= is.interval {
+		if addr.Port != 0 { // ignore nodes who "use" port 0...
+			is.routingTableMutex.Lock()
+			if uint(len(is.routingTable)) < is.maxNeighbors {
+				is.routingTable[string(msg.R.ID)] = addr
+			}
+			is.routingTableMutex.Unlock()
+		}
+	}
 
 	// iterate
 	is.routingTableMutex.Lock()
@@ -252,18 +260,16 @@ func (is *IndexingService) onSampleInfohashesResponse(msg *Message, addr *net.UD
 		}
 		is.routingTable[string(node.ID)] = &node.Addr
 
-		// TODO
-		/*
-			target := make([]byte, 20)
-			_, err := rand.Read(target)
-			if err != nil {
-				zap.L().Panic("Could NOT generate random bytes!")
-			}
-			is.protocol.SendMessage(
-				NewSampleInfohashesQuery(is.nodeID, []byte("aa"), target),
-				&node.Addr,
-			)
-		*/
+		// Immediately query newly discovered nodes for more infohashes
+		target := make([]byte, 20)
+		_, err := rand.Read(target)
+		if err != nil {
+			zap.L().Panic("Could NOT generate random bytes!")
+		}
+		is.protocol.SendMessage(
+			NewSampleInfohashesQuery(is.nodeID, []byte("aa"), target),
+			&node.Addr,
+		)
 	}
 }
 

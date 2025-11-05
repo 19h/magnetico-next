@@ -26,7 +26,7 @@ type Manager struct {
 
 func NewManager(addrs []string, interval time.Duration, maxNeighbors uint) *Manager {
 	manager := new(Manager)
-	manager.output = make(chan Result, 20)
+	manager.output = make(chan Result, 1000)
 
 	for _, addr := range addrs {
 		service := mainline.NewIndexingService(addr, interval, maxNeighbors, mainline.IndexingServiceEventHandlers{

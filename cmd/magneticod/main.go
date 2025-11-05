@@ -98,7 +98,7 @@ func main() {
 	}
 
 	trawlingManager := dht.NewManager(opFlags.IndexerAddrs, opFlags.IndexerInterval, opFlags.IndexerMaxNeighbors)
-	metadataSink := metadata.NewSink(5*time.Second, opFlags.LeechMaxN)
+	metadataSink := metadata.NewSink(3*time.Second, opFlags.LeechMaxN)
 
 	// The Event Loop
 	for stopped := false; !stopped; {
@@ -136,11 +136,11 @@ func parseFlags() (*opFlags, error) {
 	var cmdF struct {
 		DatabaseURL string `long:"database" description:"URL of the database."`
 
-		IndexerAddrs        []string `long:"indexer-addr" description:"Address(es) to be used by indexing DHT nodes." default:"0.0.0.0:0"`
-		IndexerInterval     uint     `long:"indexer-interval" description:"Indexing interval in integer seconds." default:"1"`
-		IndexerMaxNeighbors uint     `long:"indexer-max-neighbors" description:"Maximum number of neighbors of an indexer." default:"1000"`
+	IndexerAddrs        []string `long:"indexer-addr" description:"Address(es) to be used by indexing DHT nodes." default:"0.0.0.0:0"`
+	IndexerInterval     uint     `long:"indexer-interval" description:"Indexing interval in integer seconds." default:"1"`
+	IndexerMaxNeighbors uint     `long:"indexer-max-neighbors" description:"Maximum number of neighbors of an indexer." default:"10000"`
 
-		LeechMaxN uint `long:"leech-max-n" description:"Maximum number of leeches." default:"50"`
+	LeechMaxN uint `long:"leech-max-n" description:"Maximum number of leeches." default:"500"`
 
 		Verbose []bool `short:"v" long:"verbose" description:"Increases verbosity."`
 		Profile string `long:"profile" description:"Enable profiling." choice:"cpu" choice:"memory"`
